@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: back-deployment
+  labels:
+    app: back-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: back-deployment
+  template:
+    metadata:
+      labels:
+        app: back-deployment
+    spec:
+      containers:
+      - name: back-deployment
+        image: killianndev/ephemere-spring-back
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 9000
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:mysql://172.17.0.4/ephemeral-db
+        - name: SPRING_DATASOURCE_USERNAME
+          value: admin
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: admin
+        - name: TOKEN_SECRET
+          value: secret
+        - name: APPLICATION_NAME
+          value: Ephemeral
+        - name: FACEBOOK_APIVERSION
+          value: v14.0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: back-service
+spec:
+  selector:
+    app: back-deployment
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000

@@ -1,0 +1,192 @@
+Kubernetes
+
+simple js app example :
+
+---------- Node & pod
+
+Node: simple server, physical or virtual machine
+Pod: an abstraction over a container (docker container).
+Usualy 1 container per pod.
+
+each pod gets its own ip adress
+pods can die (they are ephemeral) -> a new adress is created everytime pods restarts
+
+Service: static ip adress that never changes
+
+Externa Service: service to access our app from outside (a browser)
+-> http://124.89.101.2:8080 ip of the node machine + port.
+
+Ingress -> permets de forwarder un nom de domaine public avec un protocole sécure
+vers les services internes du pod.
+
+ConfigMap: external configuration of your application
+DB_URL = mongo-db-service
+
+Secret: like config map but used to store secret data
+-> encoded in base64
+DB_USER = mongo-user
+DB_PSWD = mongo-pwd
+certificate = ..
+
+we can use it as environment variables inside our app.
+
+
+---------- Volumes
+
+Volumes // like docker
+Storage on local machine or remote (cloud storage oustide of the kbernetes cluster)
+
+Kubernetes doesn't manage data persistence !!
+
+--------- Replicate our app
+on clone Nodes
+
+Service : 2 functionalitises : permanent ip, load balancer -> will use a pod that is not busy
+
+StatefulSet -> for stateful app
+should be created with StatefullSet, not Deployment
+for db consistency
+
+db are often hosted outise K8s cluster
+
+---------------------------- basic architecture of Kubernetes
+
+Master node, slave Nodes
+
+Slaves:
+A node has a container runtime (ex docker) and kublet
+kublet is responsable to start the pod and run the container
+
+kube proxy: responsible for forward the request from a pod to another
+ 
+Master:
+-api server
+user talks with the master with an api Server to start a deployement for example
+-> forward to the slave Nodes.
+
+-scheduler to schedule the creation of a new pod on the must available Node (scheduler will choose)
+
+-controller manager : controls the scheduler automatically if a pod went down
+
+- etcd : cluster brain (key, value store) where the states of each pods is saved
+
+
+we can have 2+ instances of master nodes they will share the same api server and the same etcd key value storage
+
+in very little cluster for example : 2 Master nodes, 3 slave nodes
+
+
+-------------------- minicube, kubectl
+
+docker runtime through virtual box
+-> 1 Node K8s cluster
+
+kubectl : command line tool for K8s cluster
+create pods, destroy pods, etc..
+
+kubectl get nodes : show the nodes and their status, master or slaves
+kubectl version : show the kubernetes version
+
+kubectl create --help
+
+// we don't create pods directly we use an abstraction like deployement
+kubectl create deployment NAME --image=image [--dry-run] [options]
+
+// going to pull nginx image from docker hub 
+kubectl create deployment nginx-depl --image=nginx
+
+kubectl get deployment: list all deployments created
+
+kubectl get pods: we can see our nginx pod and its status
+kubectl get replicaset: the deployment created one replicaset by default (configurable in options)
+
+everything below deployment should be managed automatically by K8s
+
+Abstractions:
+deployment
+replicaset
+pod
+container
+
+kubectl edit deployment nginx-depl
+// we can change the image version here, if the config file changes, a new pod is created and started
+to replace the old one, same for replicaset.
+
+kubctl logs podname: see the logs of a pod, like to debug an error on mongo connection
+kubectl describe pod podname: get more infos for a particular pod
+
+kubectl exec -it podname --bin/bash: starts an interactive terminal inside this pod
+
+kubctl delete deployment deployment-NAME
+
+kubectl apply -f [file name] // a yaml config file
+
+see nginx-deployment.yaml file.
+name is the deployment name, first spec is the deployment spec (how many replicaset.. etc)
+second spec is the pod spec
+
+if i want to change something on this created deployment, i can just change my config file
+and apply again.
+
+we can do that for any Kubernetes components
+
+-------------------------------
+
+specs are dependant of the kind choosen in a yalm config file.
+etcd holds the current status of any K8s components
+
+pods match its label through selector: attribute. (see specs: of pod in config file)
+in the service config file, we use the selector: attribute to link to the pod
+
+targetPort: on the service should match the containerPort: attribute on the deployment/containers config file.
+
+
+kubectl apply -f serviceName
+kubectl get service
+
+kubectl describe service serviceName
+-> show endpoints of the service wich should match the ip of the pod
+
+kubectl get pod -o wide // shows output ip idresses of the pods wide shows more infos
+we can see the endpoints of the services matches the two pods of our deployment
+
+kubectl get deployment deploymentName -o yaml
+> nginx-deployment-result.yaml // get the resulting status in a yaml file.
+
+kubectl delete -f [deploymentName file]
+kubectl delete -f [serviceName file]
+
+
+-------------------------------- DEMOS with two full apps -------------------------
+
+first 1 mongodb pod: internal service
+config map, secret => deployment.yaml
+
+second 1 pod mongo Express: external service
+
+flow: request from browser : go to mongo express external service : go to mongo express pod :
+go to mongodb internal service : go to mongodb pod
+
+--- : file separation syntax in yaml. Used to create 2 components inside the mongo-deployment.yaml file.
+
+kubectl get all | grep mongodb
+
+configMap can be shared by multiple components. (avoid to change mongodb url value twice)
+
+in yaml file
+get values from configmap
+valueFrom: 
+            configMapKeyRef:
+
+get values from secret
+valueFrom: 
+            secretKeyRef:
+
+nodePort on externalService is the port that a browser will address to use our pod.
+must be between a range: 30000, 32767
+
+A load balancer type of a service is used to loadBalance requests and to forward to an external ipadress
+this is why we had to specify the nodePort
+in minicube the external-ip is assigned to the service of type LoadBalancer by doing :
+minikube service name-of-the-service
+

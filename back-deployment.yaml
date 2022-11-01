@@ -21,18 +21,11 @@ spec:
         ports:
         - containerPort: 9000
         env:
-        - name: SPRING_DATASOURCE_URL
-          value: jdbc:mysql://172.17.0.4/ephemeral-db
-        - name: SPRING_DATASOURCE_USERNAME
-          value: admin
-        - name: SPRING_DATASOURCE_PASSWORD
-          value: admin
-        - name: TOKEN_SECRET
-          value: secret
-        - name: APPLICATION_NAME
-          value: Ephemeral
-        - name: FACEBOOK_APIVERSION
-          value: v14.0
+        - name: SPRING_APPLICATION_JSON
+          valueFrom:
+            configMapKeyRef:
+              name: back-config
+              key: back-config.json
 ---
 apiVersion: v1
 kind: Service
